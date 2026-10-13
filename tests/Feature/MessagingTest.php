@@ -2,6 +2,9 @@
 
 namespace Goldnead\Messaging\Tests\Feature;
 
+use Goldnead\Accounts\PersonalData\ErasureRegistry;
+use Goldnead\Accounts\Services\PersonalDataErasure;
+use Goldnead\Accounts\Services\PersonalDataExport;
 use Goldnead\Messaging\Events\MessageSent;
 use Goldnead\Messaging\Exceptions\MessagingException;
 use Goldnead\Messaging\Integrations\Accounts\MessagingContributor;
@@ -212,22 +215,23 @@ class MessagingTest extends TestCase
 
     public function test_account_erasure_removes_or_anonymises_messages(): void
     {
-        require_once __DIR__.'/../Fakes/accounts.php';
-        $contributor = new MessagingContributor;
+        // The real accounts services, as the account deletion calls them: via the tagged eraser registry.
+        $this->assertInstanceOf(MessagingContributor::class, app(ErasureRegistry::class)->available()['messaging']);
+        $erasure = app(PersonalDataErasure::class);
 
         $own = $this->start();
         $other = $this->service()->start($this->member, $this->makeTeam($this->makeUser('x@example.test')), 'Frage an ein anderes Team');
         $this->service()->reply($own, $this->admin, 'Antwort vom Admin');
 
         // The admin's account goes: their reply stays unattributed, the singer's conversation survives.
-        $result = $contributor->erase($this->admin);
+        $result = $erasure->erase($this->admin)['messaging'];
         $this->assertSame(1, $result->anonymized['messages']);
         $this->assertSame(0, Message::where('sender_user_id', $this->admin->id())->count());
         $this->assertSame('', Message::where('conversation_id', $own->id)->orderByDesc('id')->first()->body);
         $this->assertNull($own->participantOf($this->admin));
 
         // The singer's account goes: the conversation they started is deleted with its messages.
-        $contributor->erase($this->singer);
+        $erasure->erase($this->singer);
         $this->assertNull(Conversation::find($own->id));
         $this->assertSame(0, Message::where('conversation_id', $own->id)->count());
         $this->assertNotNull(Conversation::find($other->id));
@@ -235,11 +239,14 @@ class MessagingTest extends TestCase
 
     public function test_export_lists_own_messages(): void
     {
-        require_once __DIR__.'/../Fakes/accounts.php';
         $this->start();
 
-        $data = (new MessagingContributor)->collect($this->singer);
-        $this->assertCount(1, $data['messages']);
-        $this->assertCount(0, (new MessagingContributor)->collect($this->stranger)['messages']);
+        // The real export collects through the tagged contributor registry.
+        $export = app(PersonalDataExport::class);
+        $mine = $export->collect($this->singer);
+        $this->assertSame([], $mine['manifest']['failed']);
+        $this->assertContains('messaging', $mine['manifest']['sections']);
+        $this->assertCount(1, $mine['sections']['messaging']['messages']);
+        $this->assertCount(0, $export->collect($this->stranger)['sections']['messaging']['messages']);
     }
 }
