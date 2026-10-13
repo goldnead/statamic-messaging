@@ -25,25 +25,35 @@ class ConversationService
      * every other team member a `member`. A team with nobody else in it
      * cannot receive: fewer than two parties is no conversation.
      *
+     * Alternatively pass `$recipient = null` and a person as `$recipientUser`:
+     * exactly one of the two must be set. The person becomes the only `member`.
+     *
      * @param  array{0: string, 1: string|int}|null  $subject  Type and id of what the request is about.
      */
-    public function start(mixed $initiator, Team $recipient, string $body, bool $anonymous = false, ?array $subject = null): Conversation
+    public function start(mixed $initiator, ?Team $recipient, string $body, bool $anonymous = false, ?array $subject = null, mixed $recipientUser = null): Conversation
     {
+        if (($recipient === null) === ($recipientUser === null)) {
+            throw MessagingException::ambiguousRecipient();
+        }
+
         $initiatorKey = Users::key($initiator) ?? throw MessagingException::noRecipient();
         $body = $this->clean($body);
 
-        $others = $recipient->members()->pluck('user_id')->map(fn ($id) => (string) $id)
-            ->reject(fn ($id) => $id === $initiatorKey)->unique()->values();
+        $userKey = $recipientUser === null ? null : (Users::key($recipientUser) ?? throw MessagingException::noRecipient());
+        $others = $recipient
+            ? $recipient->members()->pluck('user_id')->map(fn ($id) => (string) $id)->reject(fn ($id) => $id === $initiatorKey)->unique()->values()
+            : collect([$userKey])->reject(fn ($id) => $id === $initiatorKey)->values();
 
         if ($others->isEmpty()) {
             throw MessagingException::noRecipient();
         }
 
-        $message = DB::transaction(function () use ($initiatorKey, $recipient, $body, $anonymous, $subject, $others) {
+        $message = DB::transaction(function () use ($initiatorKey, $recipient, $userKey, $body, $anonymous, $subject, $others) {
             $conversation = Conversation::create([
                 'subject_type' => $subject[0] ?? null,
                 'subject_id' => isset($subject[1]) ? (string) $subject[1] : null,
-                'recipient_team_id' => $recipient->id,
+                'recipient_team_id' => $recipient?->id,
+                'recipient_user_id' => $userKey,
                 'anonymous' => $anonymous,
             ]);
 
@@ -110,7 +120,7 @@ class ConversationService
 
         return $conversation->messages()->where('hidden', false)->orderBy('id')->get()->map(fn (Message $m) => [
             'id' => $m->id,
-            'sender' => $m->sender_user_id === null ? '' : $conversation->displayName($m->sender_user_id, $viewer),
+            'sender' => $m->sender_user_id === null ? Conversation::DELETED_LABEL : $conversation->displayName($m->sender_user_id, $viewer),
             'mine' => $m->sender_user_id === $me,
             'body' => $m->body,
             'read' => $m->read_at !== null,

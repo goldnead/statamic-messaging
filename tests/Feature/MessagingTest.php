@@ -249,4 +249,60 @@ class MessagingTest extends TestCase
         $this->assertCount(1, $mine['sections']['messaging']['messages']);
         $this->assertCount(0, $export->collect($this->stranger)['sections']['messaging']['messages']);
     }
+
+    public function test_person_recipient_reads_and_replies_third_party_does_not(): void
+    {
+        $c = $this->service()->start($this->singer, null, 'Hallo Chorleitung', false, ['choir_leader', 3], $this->member);
+
+        $this->assertNull($c->recipient_team_id);
+        $this->assertSame($this->member->id(), $c->recipient_user_id);
+        $this->assertCount(1, $this->service()->thread($c, $this->member));
+        $this->service()->reply($c, $this->member, 'Gern!');
+        $this->assertCount(2, $this->service()->thread($c, $this->singer));
+
+        // Neither a team admin nor a stranger gets in.
+        foreach ([$this->admin, $this->stranger] as $third) {
+            try {
+                $this->service()->thread($c, $third);
+                $this->fail('third party read the conversation');
+            } catch (AuthorizationException) {
+                $this->addToAssertionCount(1);
+            }
+        }
+    }
+
+    public function test_person_recipient_keeps_the_anonymous_side_hidden(): void
+    {
+        $c = $this->service()->start($this->singer, null, 'Anonym gefragt', true, null, $this->member);
+
+        $this->assertSame(Conversation::ANONYMOUS_LABEL, $this->service()->thread($c, $this->member)[0]['sender']);
+        $this->assertNotSame(Conversation::ANONYMOUS_LABEL, $this->service()->thread($c, $this->singer)[0]['sender']);
+    }
+
+    public function test_exactly_one_recipient_is_required(): void
+    {
+        foreach ([[$this->team, $this->member], [null, null]] as [$team, $person]) {
+            try {
+                $this->service()->start($this->singer, $team, 'Hallo', false, null, $person);
+                $this->fail('no exception');
+            } catch (MessagingException) {
+                $this->addToAssertionCount(1);
+            }
+        }
+        $this->assertSame(0, Conversation::count());
+    }
+
+    public function test_recipient_account_erasure_keeps_conversation_for_the_other_side(): void
+    {
+        $c = $this->service()->start($this->singer, null, 'Hallo', false, null, $this->member);
+        $this->service()->reply($c, $this->member, 'Antwort');
+
+        app(PersonalDataErasure::class)->erase($this->member);
+
+        $thread = $this->service()->thread($c, $this->singer);
+        $this->assertCount(2, $thread);
+        $this->assertSame(Conversation::DELETED_LABEL, $thread[1]['sender']);
+        $this->assertSame('', $thread[1]['body']);
+        $this->assertNotNull(Conversation::find($c->id));
+    }
 }

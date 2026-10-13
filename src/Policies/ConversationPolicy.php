@@ -3,9 +3,10 @@
 namespace Goldnead\Messaging\Policies;
 
 use Goldnead\Messaging\Models\Conversation;
+use Goldnead\Teams\Support\Users;
 
 /**
- * Access is the participant list plus the members of the recipient team.
+ * Access is the participant list plus the members of the recipient team or the recipient person.
  * A team admin of some other team, or an admin of this team's CP, gets
  * nothing from their role: only membership counts.
  */
@@ -14,6 +15,7 @@ class ConversationPolicy
     public function view(mixed $user, Conversation $conversation): bool
     {
         return $conversation->participantOf($user) !== null
+            || ($conversation->recipient_user_id !== null && $conversation->recipient_user_id === Users::key($user))
             || ($conversation->recipient_team_id !== null && $conversation->recipientTeam?->hasMember($user) === true);
     }
 
