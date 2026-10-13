@@ -1,0 +1,68 @@
+<?php
+
+namespace Goldnead\Messaging\Integrations\Accounts;
+
+use Goldnead\Accounts\Contracts\ContributesPersonalData;
+use Goldnead\Accounts\Contracts\ErasesPersonalData;
+use Goldnead\Accounts\PersonalData\ErasureResult;
+use Goldnead\Messaging\Models\Conversation;
+use Goldnead\Messaging\Models\ConversationParticipant;
+use Goldnead\Messaging\Models\Message;
+use Illuminate\Support\Facades\DB;
+use Statamic\Auth\User;
+
+/**
+ * Only tagged by the service provider when goldnead/statamic-accounts is there.
+ *
+ * Erasure: a conversation the account started goes entirely (it was theirs).
+ * In a conversation they only received, their messages stay for the other
+ * side but lose the sender and the text.
+ */
+class MessagingContributor implements ContributesPersonalData, ErasesPersonalData
+{
+    public function key(): string
+    {
+        return 'messaging';
+    }
+
+    public function label(): string
+    {
+        return 'Messaging';
+    }
+
+    public function available(): bool
+    {
+        return true;
+    }
+
+    public function collect(User $user): array
+    {
+        $id = (string) $user->id();
+        $conversations = ConversationParticipant::where('user_id', $id)->pluck('conversation_id');
+
+        return [
+            'conversations' => $conversations->all(),
+            'messages' => Message::where('sender_user_id', $id)->get(['conversation_id', 'body', 'created_at'])->toArray(),
+        ];
+    }
+
+    public function blockers(User $user, string $audience = 'customer'): array
+    {
+        return [];
+    }
+
+    public function erase(User $user): ErasureResult
+    {
+        $id = (string) $user->id();
+
+        return DB::transaction(function () use ($id) {
+            $own = ConversationParticipant::where('user_id', $id)->where('role', ConversationParticipant::ROLE_INITIATOR)->pluck('conversation_id');
+            $deleted = Conversation::whereIn('id', $own)->delete();
+
+            $anonymized = Message::where('sender_user_id', $id)->update(['sender_user_id' => null, 'body' => '']);
+            $participations = ConversationParticipant::where('user_id', $id)->delete();
+
+            return new ErasureResult($this->key(), deleted: array_filter(['conversations' => $deleted, 'participations' => $participations]), anonymized: array_filter(['messages' => $anonymized]));
+        });
+    }
+}

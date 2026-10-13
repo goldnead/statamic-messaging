@@ -1,0 +1,70 @@
+{
+    "name": "goldnead/statamic-messaging",
+    "description": "Messaging for Statamic: conversations between people and teams, with anonymous requests, profile release and blocking.",
+    "type": "statamic-addon",
+    "license": "proprietary",
+    "keywords": ["statamic", "statamic-addon", "messaging", "conversations", "inbox"],
+    "authors": [
+        {
+            "name": "Adrian Goldner",
+            "email": "info@adriangoldner.com"
+        }
+    ],
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/goldnead/statamic-teams"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "goldnead/statamic-teams": "dev-codex/chorgesucht-claims as 0.3.x-dev",
+        "laravel/framework": "^12.40|^13.0",
+        "statamic/cms": "^6.0"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.18",
+        "orchestra/testbench": "^10.0 || ^11.0",
+        "phpunit/phpunit": "^11.0 || ^12.0"
+    },
+    "suggest": {
+        "goldnead/statamic-accounts": "Messages of a deleted account are erased or anonymised, and appear in the data export.",
+        "goldnead/statamic-notifications": "Notify the other side of a conversation when a message arrives (listen to MessageSent)."
+    },
+    "autoload": {
+        "psr-4": {
+            "Goldnead\\Messaging\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Goldnead\\Messaging\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "statamic": {
+            "name": "Messaging",
+            "description": "Conversations between people and teams, with anonymous requests.",
+            "url": "https://github.com/goldnead/statamic-messaging",
+            "developer": "Adrian Goldner",
+            "developer-url": "https://adriangoldner.dev"
+        },
+        "laravel": {
+            "providers": ["Goldnead\\Messaging\\ServiceProvider"]
+        }
+    },
+    "scripts": {
+        "test": ["@php vendor/bin/phpunit"],
+        "lint": ["@php vendor/bin/pint --test"]
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "composer/installers": true,
+            "php-http/discovery": true,
+            "pixelfear/composer-dist-plugin": true
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
