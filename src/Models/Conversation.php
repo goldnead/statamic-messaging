@@ -14,6 +14,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $subject_type
  * @property string|null $subject_id
  * @property int|null $recipient_team_id
+ * @property string|null $recipient_user_id
  * @property bool $anonymous
  * @property bool $profile_shared
  * @property Carbon|null $last_message_at
@@ -21,6 +22,8 @@ use Illuminate\Support\Carbon;
 class Conversation extends Model
 {
     public const ANONYMOUS_LABEL = 'Anonyme:r Interessent:in';
+
+    public const DELETED_LABEL = 'Konto gelöscht';
 
     protected $table = 'conversations';
 
