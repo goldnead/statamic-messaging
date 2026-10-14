@@ -2,12 +2,14 @@
 
 namespace Goldnead\Messaging\Services;
 
+use Goldnead\Messaging\Broadcasting\MessageBroadcast;
 use Goldnead\Messaging\Events\MessageSent;
 use Goldnead\Messaging\Exceptions\MessagingException;
 use Goldnead\Messaging\Models\Conversation;
 use Goldnead\Messaging\Models\ConversationParticipant;
 use Goldnead\Messaging\Models\Message;
 use Goldnead\Messaging\Policies\ConversationPolicy;
+use Goldnead\Messaging\Support\Realtime;
 use Goldnead\Teams\Models\Team;
 use Goldnead\Teams\Support\Users;
 use Illuminate\Support\Carbon;
@@ -143,6 +145,34 @@ class ConversationService
         ]);
     }
 
+    /**
+     * One message as `$viewer` may see it, in the shape of {@see thread()} plus
+     * a formatted `time`. `null` for a hidden message or one of another
+     * conversation: the live endpoint answers 404 for both.
+     *
+     * @return array{id: int, sender: string, mine: bool, body: string, read: bool, sent_at: string|null, time: string}|null
+     */
+    public function present(Conversation $conversation, Message $message, mixed $viewer): ?array
+    {
+        Gate::forUser($viewer)->authorize('view', $conversation);
+
+        if ($message->conversation_id !== $conversation->id || $message->hidden) {
+            return null;
+        }
+
+        $sentAt = $message->created_at?->copy()->timezone(config('messaging.timezone') ?: config('app.timezone'));
+
+        return [
+            'id' => $message->id,
+            'sender' => $message->sender_user_id === null ? Conversation::DELETED_LABEL : $conversation->displayName($message->sender_user_id, $viewer),
+            'mine' => $message->sender_user_id === Users::key($viewer),
+            'body' => $message->body,
+            'read' => $message->read_at !== null,
+            'sent_at' => $sentAt?->toIso8601String(),
+            'time' => $sentAt?->format(config('messaging.time_format', 'd.m.Y H:i')) ?? '',
+        ];
+    }
+
     /** Marks what the others wrote as read. */
     public function markRead(Conversation $conversation, mixed $user): void
     {
@@ -174,6 +204,7 @@ class ConversationService
         }
 
         $message->update(['hidden' => true, 'hidden_reason' => $reason, 'hidden_at' => now()]);
+        Realtime::announce(MessageBroadcast::HIDDEN, $message);
 
         return $message;
     }
@@ -181,6 +212,7 @@ class ConversationService
     public function unhideMessage(Message $message): Message
     {
         $message->update(['hidden' => false, 'hidden_reason' => null, 'hidden_at' => null]);
+        Realtime::announce(MessageBroadcast::RESTORED, $message);
 
         return $message;
     }

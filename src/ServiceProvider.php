@@ -2,12 +2,19 @@
 
 namespace Goldnead\Messaging;
 
+use Goldnead\Messaging\Events\MessageSent;
 use Goldnead\Messaging\Integrations\Accounts\MessagingContributor;
+use Goldnead\Messaging\Listeners\BroadcastMessage;
 use Goldnead\Messaging\Models\Conversation;
 use Goldnead\Messaging\Policies\ConversationPolicy;
 use Goldnead\Messaging\Scopes\Filters;
 use Goldnead\Messaging\Services\ConversationService;
+use Goldnead\Messaging\Support\Realtime;
+use Goldnead\Teams\Support\Users;
+use Illuminate\Support\Facades\Broadcast;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Route;
 use Statamic\Facades\CP\Nav;
 use Statamic\Facades\Permission;
 use Statamic\Providers\AddonServiceProvider;
@@ -16,6 +23,10 @@ class ServiceProvider extends AddonServiceProvider
 {
     protected $routes = [
         'cp' => __DIR__.'/../routes/cp.php',
+    ];
+
+    protected $tags = [
+        Tags\Messaging::class,
     ];
 
     /**
@@ -60,6 +71,39 @@ class ServiceProvider extends AddonServiceProvider
         }
 
         $this->registerNavigation()->registerPermissions()->bootFilters();
+
+        Event::listen(MessageSent::class, BroadcastMessage::class);
+
+        if (Realtime::enabled()) {
+            $this->bootRealtime();
+        }
+    }
+
+    /**
+     * Everything realtime needs, registered only while it is on: the private
+     * channels, the endpoint and script, and the `/broadcasting/auth` route
+     * when the app has not registered it itself. Off costs nothing.
+     */
+    protected function bootRealtime(): void
+    {
+        $this->loadRoutesFrom(__DIR__.'/../routes/realtime.php');
+
+        // After every provider has booted, so an app's own `withBroadcasting()` wins.
+        $this->app->booted(function (): void {
+            if (! Route::has('broadcasting.auth')) {
+                Broadcast::routes(['middleware' => ['web']]);
+            }
+
+            Broadcast::channel('messaging.conversation.{id}', function ($user, string $id): bool {
+                $conversation = ctype_digit($id) ? Conversation::query()->find((int) $id) : null;
+
+                return $conversation !== null
+                    && Gate::forUser($user)->allows('view', $conversation)
+                    && ! $conversation->participantOf($user)?->blocked;
+            });
+
+            Broadcast::channel('messaging.user.{key}', fn ($user, string $key): bool => Users::key($user) === $key);
+        });
     }
 
     /**

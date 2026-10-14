@@ -25,9 +25,9 @@ if [ ! -d node_modules ]; then
   exit 2
 fi
 
-DIST="resources/dist/build"
+DIST="resources/dist"
 
-echo "==> Rebuilding CP bundle (npm run build)"
+echo "==> Rebuilding CP bundle and realtime script (npm run build)"
 npm run build >/dev/null
 
 if git diff --quiet HEAD -- "$DIST" && [ -z "$(git status --porcelain -- "$DIST")" ]; then

@@ -12,6 +12,7 @@
 
 ### Added
 
+- Realtime messaging over websockets (Laravel Reverb, or Pusher protocol), on as soon as `broadcasting.default` is a `reverb` or `pusher` connection and silently off otherwise. `MessageBroadcast` on private channels `messaging.conversation.{id}` and `messaging.user.{key}` for sent, hidden and restored messages, carrying two ids and no text or name; the browser fetches the message from `GET /messaging/realtime/{conversation}/messages/{message}`. Channel authorisation is registered by the addon (participants who may still read and have not blocked). New Antlers tag `{{ messaging:realtime }}`, prebuilt script served at `/messaging/realtime.js` (`resources/dist/realtime`), `ConversationService::present()`, `config/messaging.php`. See "Realtime in 3 steps" in the README.
 - Control Panel: **Messages** listing and detail (metadata only, never texts or names of anonymous initiators), moderation (hide and unhide a message of a reported conversation with a reason, unblock a participant), a dashboard widget, and the permissions `view messaging` and `manage messaging`. New migration for `messages.hidden_reason` and `hidden_at`; `ConversationService::hideMessage()`, `unhideMessage()`, `unblock()`.
 
 - `ConversationService::MAX_BODY_LENGTH` (10000 characters) and `MessagingException::bodyTooLong()`.

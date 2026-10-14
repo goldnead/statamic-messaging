@@ -4,7 +4,7 @@
     "type": "module",
     "scripts": {
         "dev": "vite",
-        "build": "vite build",
+        "build": "vite build && vite build --config vite.realtime.config.js",
         "build:check": "bash scripts/check-dist-fresh.sh"
     },
     "dependencies": {
@@ -13,7 +13,9 @@
     "devDependencies": {
         "@tailwindcss/vite": "^4.0.0",
         "@vitejs/plugin-vue": "^6.0.0",
+        "laravel-echo": "^2.6.1",
         "laravel-vite-plugin": "^2.0.0 || ^3.0.0",
+        "pusher-js": "^8.6.0",
         "tailwindcss": "^4.0.0",
         "vite": "^7.0.0 || ^8.0.0",
         "vue": "^3.4.0"
