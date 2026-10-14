@@ -18,6 +18,8 @@ use Illuminate\Support\Carbon;
  * @property bool $anonymous
  * @property bool $profile_shared
  * @property Carbon|null $last_message_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  */
 class Conversation extends Model
 {

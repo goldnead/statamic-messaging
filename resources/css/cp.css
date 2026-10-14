@@ -1,0 +1,8 @@
+/**
+ * Messaging: Statamic 6 CP styles. Statamic's own Tailwind theme (tokens,
+ * utilities, UI styles) rather than bare Tailwind, and no Preflight.
+ */
+
+@import "@statamic/cms/tailwind.css";
+
+@source "../js/**/*.{vue,js}";

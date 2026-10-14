@@ -24,6 +24,9 @@ class ConversationService
     /** Characters per message, counted after tags are stripped. */
     public const MAX_BODY_LENGTH = 10000;
 
+    /** Characters of a moderation reason. */
+    public const MAX_REASON_LENGTH = 255;
+
     /**
      * Open a conversation with a team. The initiator becomes `initiator`,
      * every other team member a `member`. A team with nobody else in it
@@ -148,6 +151,45 @@ class ConversationService
         $conversation->messages()->whereNull('read_at')
             ->where(fn ($q) => $q->where('sender_user_id', '!=', Users::key($user))->orWhereNull('sender_user_id'))
             ->update(['read_at' => now()]);
+    }
+
+    /**
+     * Moderation, for the Control Panel. These three do not go through
+     * {@see ConversationPolicy}: the caller is not a party to the conversation
+     * and authorises with the `manage messaging` permission instead.
+     *
+     * Only a message of a reported conversation (a participant flagged it) can
+     * be hidden, so the Control Panel cannot be used to censor at will.
+     */
+    public function hideMessage(Message $message, string $reason): Message
+    {
+        $reason = trim(strip_tags($reason));
+
+        if ($reason === '' || mb_strlen($reason) > self::MAX_REASON_LENGTH) {
+            throw MessagingException::invalidReason(self::MAX_REASON_LENGTH);
+        }
+
+        if (! $message->conversation->participants()->where('flagged', true)->exists()) {
+            throw MessagingException::notReported();
+        }
+
+        $message->update(['hidden' => true, 'hidden_reason' => $reason, 'hidden_at' => now()]);
+
+        return $message;
+    }
+
+    public function unhideMessage(Message $message): Message
+    {
+        $message->update(['hidden' => false, 'hidden_reason' => null, 'hidden_at' => null]);
+
+        return $message;
+    }
+
+    public function unblock(ConversationParticipant $participant): ConversationParticipant
+    {
+        $participant->update(['blocked' => false]);
+
+        return $participant;
     }
 
     /** A team member who has not touched the conversation yet gets their own row on first write. */

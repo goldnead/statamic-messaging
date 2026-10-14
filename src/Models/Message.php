@@ -13,6 +13,8 @@ use Illuminate\Support\Carbon;
  * @property string $body
  * @property Carbon|null $read_at
  * @property bool $hidden
+ * @property string|null $hidden_reason
+ * @property Carbon|null $hidden_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -25,6 +27,7 @@ class Message extends Model
     protected $casts = [
         'read_at' => 'datetime',
         'hidden' => 'boolean',
+        'hidden_at' => 'datetime',
     ];
 
     /** @return BelongsTo<Conversation, $this> */
