@@ -10,19 +10,9 @@
             "email": "info@adriangoldner.com"
         }
     ],
-    "repositories": [
-        {
-            "type": "vcs",
-            "url": "https://github.com/goldnead/statamic-teams"
-        },
-        {
-            "type": "vcs",
-            "url": "https://github.com/goldnead/statamic-accounts"
-        }
-    ],
     "require": {
         "php": "^8.2",
-        "goldnead/statamic-teams": "dev-codex/chorgesucht-claims as 0.3.x-dev",
+        "goldnead/statamic-teams": "^0.4",
         "laravel/framework": "^12.40|^13.0",
         "statamic/cms": "^6.0"
     },
@@ -74,6 +64,6 @@
             "pixelfear/composer-dist-plugin": true
         }
     },
-    "minimum-stability": "dev",
+    "minimum-stability": "stable",
     "prefer-stable": true
 }

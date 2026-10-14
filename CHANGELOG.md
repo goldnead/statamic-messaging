@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1 — 2026-10-15
+
+### Fixed
+
+- `composer.json` required `goldnead/statamic-teams` as a dev branch and set `minimum-stability` to `dev`, so 0.1.0 could not be installed from Packagist. It now requires `^0.4` and `stable`.
+
 ## 0.1.0 — 2026-10-15
 
 ### Security
