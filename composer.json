@@ -28,6 +28,7 @@
     },
     "require-dev": {
         "goldnead/statamic-accounts": "^0.5",
+        "larastan/larastan": "^3.0",
         "laravel/pint": "^1.18",
         "orchestra/testbench": "^10.0 || ^11.0",
         "phpunit/phpunit": "^11.0 || ^12.0"
@@ -49,10 +50,11 @@
     "extra": {
         "statamic": {
             "name": "Messaging",
+            "slug": "messaging",
             "description": "Conversations between people and teams, with anonymous requests.",
             "url": "https://github.com/goldnead/statamic-messaging",
             "developer": "Adrian Goldner",
-            "developer-url": "https://adriangoldner.dev"
+            "developer-url": "https://gldnr.studio"
         },
         "laravel": {
             "providers": ["Goldnead\\Messaging\\ServiceProvider"]
@@ -60,7 +62,9 @@
     },
     "scripts": {
         "test": ["@php vendor/bin/phpunit"],
-        "lint": ["@php vendor/bin/pint --test"]
+        "lint": ["@php vendor/bin/pint --test"],
+        "analyse": ["@php vendor/bin/phpstan analyse"],
+        "analyse": ["@php vendor/bin/phpstan analyse"]
     },
     "config": {
         "sort-packages": true,

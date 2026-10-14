@@ -1,0 +1,16 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+    - phpstan-baseline.neon
+
+parameters:
+    level: 5
+
+    # A project-local cache. PHPStan's default temp directory is shared across
+    # every project on the machine.
+    tmpDir: .phpstan
+
+    paths:
+        - src
+        - database
+
+    treatPhpDocTypesAsCertain: false
