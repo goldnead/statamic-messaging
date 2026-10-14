@@ -8,6 +8,8 @@
 
 ### Added
 
+- Control Panel: **Messages** listing and detail (metadata only, never texts or names of anonymous initiators), moderation (hide and unhide a message of a reported conversation with a reason, unblock a participant), a dashboard widget, and the permissions `view messaging` and `manage messaging`. New migration for `messages.hidden_reason` and `hidden_at`; `ConversationService::hideMessage()`, `unhideMessage()`, `unblock()`.
+
 - `ConversationService::MAX_BODY_LENGTH` (10000 characters) and `MessagingException::bodyTooLong()`.
 - `Conversation::initiatorKey()` and an optional `$initiatorKey` argument on `Conversation::displayName()`.
 - `LICENSE.md`, `.gitattributes`, Larastan (level 5), a CI matrix over PHP, Laravel and `--prefer-lowest`, and a MySQL run through `phpunit.mysql.xml`.

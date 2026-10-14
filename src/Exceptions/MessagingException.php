@@ -21,6 +21,16 @@ class MessagingException extends RuntimeException
         return new self('A conversation needs exactly one recipient: a team or a person.');
     }
 
+    public static function notReported(): self
+    {
+        return new self('Only a message in a reported conversation can be hidden.');
+    }
+
+    public static function invalidReason(int $max): self
+    {
+        return new self("A reason is required and limited to {$max} characters.");
+    }
+
     public static function noRecipient(): self
     {
         return new self('A conversation needs at least two parties; the team has nobody else to receive it.');
