@@ -65,6 +65,14 @@ class Conversation extends Model
         return $this->participantOf($user)?->role === ConversationParticipant::ROLE_INITIATOR;
     }
 
+    /** The key of the person who started the conversation, `null` once their account is erased. */
+    public function initiatorKey(): ?string
+    {
+        $key = $this->participants()->where('role', ConversationParticipant::ROLE_INITIATOR)->value('user_id');
+
+        return $key === null ? null : (string) $key;
+    }
+
     /** The initiator's identity is hidden while the request is anonymous and the profile is not released. */
     public function isMasked(): bool
     {
@@ -74,15 +82,21 @@ class Conversation extends Model
     /**
      * What `$viewer` may see as the name of `$user`. Only the anonymous side
      * is ever masked, and never towards itself.
+     *
+     * Pass `$initiatorKey` when naming many senders of one thread, so the
+     * initiator is looked up once instead of once per call.
      */
-    public function displayName(mixed $user, mixed $viewer): string
+    public function displayName(mixed $user, mixed $viewer, ?string $initiatorKey = null): string
     {
-        if ($this->isMasked() && $this->isInitiator($user) && ! $this->isInitiator($viewer)) {
-            return self::ANONYMOUS_LABEL;
+        if ($this->isMasked()) {
+            $initiatorKey ??= $this->initiatorKey();
+            $userKey = Users::key($user);
+
+            if ($initiatorKey !== null && $userKey === $initiatorKey && Users::key($viewer) !== $initiatorKey) {
+                return self::ANONYMOUS_LABEL;
+            }
         }
 
-        $found = Users::find($user);
-
-        return (string) ($found?->get('name') ?: $found?->email() ?: '');
+        return Users::name($user) ?? '';
     }
 }

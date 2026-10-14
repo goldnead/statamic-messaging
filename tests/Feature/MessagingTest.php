@@ -14,7 +14,9 @@ use Goldnead\Messaging\Services\ConversationService;
 use Goldnead\Messaging\Tests\TestCase;
 use Goldnead\Teams\TeamsManager;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Gate;
 
 class MessagingTest extends TestCase
 {
@@ -304,5 +306,104 @@ class MessagingTest extends TestCase
         $this->assertSame(Conversation::DELETED_LABEL, $thread[1]['sender']);
         $this->assertSame('', $thread[1]['body']);
         $this->assertNotNull(Conversation::find($c->id));
+    }
+
+    public function test_a_member_who_left_the_team_loses_the_conversation(): void
+    {
+        $c = $this->start();
+        $this->service()->reply($c, $this->member, 'Ich schaue mal');
+        app(TeamsManager::class)->removeMember($this->team, $this->member);
+
+        foreach (['view', 'reply', 'block', 'archive'] as $ability) {
+            $this->assertFalse($this->member->can($ability, $c) ?? false, $ability);
+        }
+        $this->expectException(AuthorizationException::class);
+        $this->service()->thread($c, $this->member);
+    }
+
+    public function test_the_initiator_keeps_the_conversation_when_the_team_is_gone(): void
+    {
+        $c = $this->start();
+        app(TeamsManager::class)->delete($this->team);
+
+        $this->assertCount(1, $this->service()->thread($c->fresh(), $this->singer));
+    }
+
+    public function test_a_guest_gets_nothing(): void
+    {
+        $c = $this->start();
+
+        foreach (['view', 'reply', 'shareProfile', 'block', 'archive'] as $ability) {
+            $this->assertFalse(Gate::forUser(null)->allows($ability, $c), $ability);
+        }
+    }
+
+    public function test_an_overlong_message_is_refused(): void
+    {
+        $this->expectException(MessagingException::class);
+        $this->service()->start($this->singer, $this->team, str_repeat('a', ConversationService::MAX_BODY_LENGTH + 1));
+    }
+
+    public function test_a_message_at_the_limit_is_stored(): void
+    {
+        $c = $this->service()->start($this->singer, $this->team, str_repeat('ä', ConversationService::MAX_BODY_LENGTH));
+
+        $this->assertSame(ConversationService::MAX_BODY_LENGTH, mb_strlen($c->messages()->first()->body));
+    }
+
+    public function test_thread_does_not_query_per_message(): void
+    {
+        $c = $this->start(anonymous: true);
+        $this->service()->thread($c, $this->admin); // loads the lazy relations once
+        DB::enableQueryLog();
+        $this->service()->thread($c, $this->admin);
+        $few = count(DB::getQueryLog());
+
+        foreach (range(1, 8) as $i) {
+            $this->service()->reply($c, $i % 2 ? $this->admin : $this->singer, "Nachricht $i");
+        }
+        DB::flushQueryLog();
+        $this->service()->thread($c, $this->admin);
+        $many = count(DB::getQueryLog());
+        DB::disableQueryLog();
+
+        $this->assertSame($few, $many, 'the number of queries must not grow with the number of messages');
+    }
+
+    public function test_recipient_account_erasure_drops_the_recipient_key_from_the_conversation(): void
+    {
+        $c = $this->service()->start($this->singer, null, 'Hallo', false, null, $this->member);
+
+        app(PersonalDataErasure::class)->erase($this->member);
+
+        $this->assertNull($c->fresh()->recipient_user_id);
+    }
+
+    public function test_message_sent_waits_for_the_commit(): void
+    {
+        $heard = [];
+        Event::listen(MessageSent::class, function (MessageSent $e) use (&$heard) {
+            $heard[] = $e->message->id;
+        });
+
+        DB::beginTransaction();
+        $c = $this->start();
+        $this->assertSame([], $heard, 'a listener must not run before the surrounding transaction commits');
+        DB::commit();
+
+        $this->assertCount(1, $heard);
+        $this->assertSame($c->messages()->first()->id, $heard[0]);
+    }
+
+    public function test_the_first_write_of_a_member_without_a_row_creates_exactly_one_row(): void
+    {
+        $c = $this->start();
+        $late = $this->makeUser('late@example.test');
+        app(TeamsManager::class)->addMember($this->team, $late);
+
+        $this->service()->block($c, $late);
+        $this->service()->archive($c, $late);
+
+        $this->assertSame(1, $c->participants()->where('user_id', $late->id())->count());
     }
 }
