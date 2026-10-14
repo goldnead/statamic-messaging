@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    The identical suite against a real MySQL server. SQLite has no InnoDB key
+    length limit and no utf8mb4 collation, so a green SQLite run says nothing
+    about whether the schema builds on the database the sites actually run.
+
+    DB_DATABASE=messaging_test vendor/bin/phpunit -c phpunit.mysql.xml
+-->
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true">
+    <testsuites>
+        <testsuite name="Test Suite"><directory suffix="Test.php">./tests</directory></testsuite>
+    </testsuites>
+    <source><include><directory suffix=".php">./src</directory></include></source>
+    <php>
+        <env name="APP_KEY" value="base64:zBxjeMPnHWA0nsGZDzB0mNlOZ2qJcSZFxJVIYCJTL3M="/>
+        <env name="DB_CONNECTION" value="testing"/>
+        <env name="DB_DRIVER" value="mysql"/>
+    </php>
+</phpunit>

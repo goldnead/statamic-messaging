@@ -37,7 +37,7 @@ class MessagingContributor implements ContributesPersonalData, ErasesPersonalDat
 
     public function collect(User $user): array
     {
-        $id = (string) $user->id();
+        $id = (string) $user->getAuthIdentifier();
         $conversations = ConversationParticipant::where('user_id', $id)->pluck('conversation_id');
 
         return [
@@ -53,9 +53,13 @@ class MessagingContributor implements ContributesPersonalData, ErasesPersonalDat
 
     public function erase(User $user): ErasureResult
     {
-        $id = (string) $user->id();
+        $id = (string) $user->getAuthIdentifier();
 
         return DB::transaction(function () use ($id) {
+            // A conversation addressed to this person stays for the other side,
+            // without the key that would still point at the erased account.
+            Conversation::where('recipient_user_id', $id)->update(['recipient_user_id' => null]);
+
             $own = ConversationParticipant::where('user_id', $id)->where('role', ConversationParticipant::ROLE_INITIATOR)->pluck('conversation_id');
             $deleted = Conversation::whereIn('id', $own)->delete();
 

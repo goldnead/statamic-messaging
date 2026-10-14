@@ -11,6 +11,11 @@ class MessagingException extends RuntimeException
         return new self('A message needs a text.');
     }
 
+    public static function bodyTooLong(int $max): self
+    {
+        return new self("A message is limited to {$max} characters.");
+    }
+
     public static function ambiguousRecipient(): self
     {
         return new self('A conversation needs exactly one recipient: a team or a person.');

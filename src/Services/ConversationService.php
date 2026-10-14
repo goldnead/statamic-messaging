@@ -10,6 +10,7 @@ use Goldnead\Messaging\Models\Message;
 use Goldnead\Messaging\Policies\ConversationPolicy;
 use Goldnead\Teams\Models\Team;
 use Goldnead\Teams\Support\Users;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -20,6 +21,9 @@ use Illuminate\Support\Facades\Gate;
  */
 class ConversationService
 {
+    /** Characters per message, counted after tags are stripped. */
+    public const MAX_BODY_LENGTH = 10000;
+
     /**
      * Open a conversation with a team. The initiator becomes `initiator`,
      * every other team member a `member`. A team with nobody else in it
@@ -110,17 +114,25 @@ class ConversationService
      * named through {@see Conversation::displayName()}. This is the shape a
      * page or a mail should render, never the raw rows.
      *
-     * @return Collection<int, array{id: int, sender: string, mine: bool, body: string, read: bool, sent_at: mixed}>
+     * @return Collection<int, array{id: int, sender: string, mine: bool, body: string, read: bool, sent_at: Carbon|null}>
      */
     public function thread(Conversation $conversation, mixed $viewer): Collection
     {
         Gate::forUser($viewer)->authorize('view', $conversation);
 
         $me = Users::key($viewer);
+        $messages = $conversation->messages()->where('hidden', false)->orderBy('id')->get();
 
-        return $conversation->messages()->where('hidden', false)->orderBy('id')->get()->map(fn (Message $m) => [
+        // One name per sender, one initiator lookup per thread, however long it is.
+        $initiator = $conversation->isMasked() ? $conversation->initiatorKey() : null;
+        $names = [];
+        $nameOf = function (string $key) use (&$names, $conversation, $viewer, $initiator): string {
+            return $names[$key] ??= $conversation->displayName($key, $viewer, $initiator);
+        };
+
+        return $messages->toBase()->map(fn (Message $m) => [
             'id' => $m->id,
-            'sender' => $m->sender_user_id === null ? Conversation::DELETED_LABEL : $conversation->displayName($m->sender_user_id, $viewer),
+            'sender' => $m->sender_user_id === null ? Conversation::DELETED_LABEL : $nameOf($m->sender_user_id),
             'mine' => $m->sender_user_id === $me,
             'body' => $m->body,
             'read' => $m->read_at !== null,
@@ -142,7 +154,7 @@ class ConversationService
     protected function participant(Conversation $conversation, mixed $user): ConversationParticipant
     {
         return $conversation->participantOf($user)
-            ?? $conversation->participants()->create(['user_id' => Users::key($user), 'role' => ConversationParticipant::ROLE_MEMBER]);
+            ?? $conversation->participants()->firstOrCreate(['user_id' => Users::key($user)], ['role' => ConversationParticipant::ROLE_MEMBER]);
     }
 
     protected function store(Conversation $conversation, string $senderKey, string $body): Message
@@ -159,6 +171,10 @@ class ConversationService
     {
         $body = trim(strip_tags($body));
 
-        return $body === '' ? throw MessagingException::emptyBody() : $body;
+        return match (true) {
+            $body === '' => throw MessagingException::emptyBody(),
+            mb_strlen($body) > self::MAX_BODY_LENGTH => throw MessagingException::bodyTooLong(self::MAX_BODY_LENGTH),
+            default => $body,
+        };
     }
 }

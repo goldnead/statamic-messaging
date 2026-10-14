@@ -13,6 +13,8 @@ use Illuminate\Support\Carbon;
  * @property string $body
  * @property Carbon|null $read_at
  * @property bool $hidden
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  */
 class Message extends Model
 {

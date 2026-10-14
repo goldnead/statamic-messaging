@@ -36,12 +36,37 @@ abstract class TestCase extends AddonTestCase
 
         $app['config']->set('app.key', 'base64:'.base64_encode(random_bytes(32)));
         $app['config']->set('database.default', 'testing');
-        $app['config']->set('database.connections.testing', [
-            'driver' => 'sqlite', 'database' => ':memory:', 'prefix' => '', 'foreign_key_constraints' => true,
-        ]);
+        $app['config']->set('database.connections.testing', $this->databaseSettings());
         $app['config']->set('statamic.users.repository', 'file');
         $app['config']->set('statamic.editions.pro', true);
         $app['config']->set('mail.default', 'array');
+    }
+
+    /**
+     * In-memory SQLite by default. DB_DRIVER=mysql (phpunit.mysql.xml) runs the
+     * identical suite against a real server: SQLite ignores key lengths and
+     * collations, so only MySQL shows whether the schema builds there.
+     *
+     * @return array<string, mixed>
+     */
+    protected function databaseSettings(): array
+    {
+        if (env('DB_DRIVER', 'sqlite') !== 'mysql') {
+            return ['driver' => 'sqlite', 'database' => ':memory:', 'prefix' => '', 'foreign_key_constraints' => true];
+        }
+
+        return [
+            'driver' => 'mysql',
+            'host' => env('DB_HOST', '127.0.0.1'),
+            'port' => env('DB_PORT', '3306'),
+            'database' => env('DB_DATABASE', 'messaging_test'),
+            'username' => env('DB_USERNAME', 'root'),
+            'password' => env('DB_PASSWORD', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'strict' => true,
+        ];
     }
 
     protected function tearDown(): void

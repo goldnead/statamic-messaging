@@ -1,0 +1,15 @@
+{
+    "severity": {
+        "release.versioning": "minor"
+    },
+
+    "_rationale": {
+        "release.versioning": [
+            "Downgraded, not disabled: the finding stays visible in every report.",
+            "The repository has no semver tag because tagging is the release step itself, and it waits for",
+            "the Packagist listing of goldnead/statamic-teams and goldnead/statamic-accounts (see",
+            "release.resolvable-dependencies, which stays a blocker for the same reason). Until then no",
+            "tag may be pushed. Remove this entry when v1.0.0 is tagged."
+        ]
+    }
+}
