@@ -6,6 +6,10 @@
 
 - A member who has left the recipient team can no longer read or write the team's conversations; before, a participant row from their time in the team kept the access. The initiator is unaffected.
 
+### Changed (breaking for direct database access)
+
+- Message texts are stored encrypted (`encrypted` cast on `Message::$body`). The encryption depends on `APP_KEY`; a key change is only safe with `APP_PREVIOUS_KEYS`, otherwise the messages are lost. Two new migrations widen `messages.body` to `longText` and encrypt the existing plain rows (idempotent, in chunks, reversible). Raw `DB::table('messages')` reads now return ciphertext. Erasing an account clears the body through the model so the empty text is stored encrypted too.
+
 ### Added
 
 - Control Panel: **Messages** listing and detail (metadata only, never texts or names of anonymous initiators), moderation (hide and unhide a message of a reported conversation with a reason, unblock a participant), a dashboard widget, and the permissions `view messaging` and `manage messaging`. New migration for `messages.hidden_reason` and `hidden_at`; `ConversationService::hideMessage()`, `unhideMessage()`, `unblock()`.

@@ -25,6 +25,8 @@ class Message extends Model
     protected $guarded = ['id'];
 
     protected $casts = [
+        // Unreadable in the database and in backups; bound to APP_KEY. Never filter or sort on it in SQL.
+        'body' => 'encrypted',
         'read_at' => 'datetime',
         'hidden' => 'boolean',
         'hidden_at' => 'datetime',

@@ -63,7 +63,12 @@ class MessagingContributor implements ContributesPersonalData, ErasesPersonalDat
             $own = ConversationParticipant::where('user_id', $id)->where('role', ConversationParticipant::ROLE_INITIATOR)->pluck('conversation_id');
             $deleted = Conversation::whereIn('id', $own)->delete();
 
-            $anonymized = Message::where('sender_user_id', $id)->update(['sender_user_id' => null, 'body' => '']);
+            // Through the model, not a bulk update: only the model's cast writes the body encrypted.
+            $anonymized = 0;
+            Message::where('sender_user_id', $id)->eachById(function (Message $message) use (&$anonymized) {
+                $message->update(['sender_user_id' => null, 'body' => '']);
+                $anonymized++;
+            });
             $participations = ConversationParticipant::where('user_id', $id)->delete();
 
             return new ErasureResult($this->key(), deleted: array_filter(['conversations' => $deleted, 'participations' => $participations]), anonymized: array_filter(['messages' => $anonymized]));

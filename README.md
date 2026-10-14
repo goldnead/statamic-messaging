@@ -64,6 +64,10 @@ Listen to `Goldnead\Messaging\Events\MessageSent` to notify the other side.
 
 With `goldnead/statamic-accounts` installed, `MessagingContributor` is tagged for export and erasure. Erasing an account deletes the conversations it started. Messages it wrote elsewhere stay, without sender and text.
 
+## Encrypted storage
+
+Message texts are stored encrypted (`messages.body`, Laravel's `encrypted` cast), so they are unreadable for anyone with database access and in backups. The encryption depends on `APP_KEY`. A key change is only safe with `APP_PREVIOUS_KEYS`; otherwise the stored messages are lost. Because the database cannot read the text, never filter, search or sort on `body` in SQL: load the model and work on the decrypted attribute. When you read or copy rows with `DB::table('messages')`, you get ciphertext; use the `Message` model. A bulk `Message::query()->update(['body' => ...])` does not apply the cast either, update through the model. Two migrations upgrade an existing install: one widens the column to `longText`, one encrypts the plain rows that are still there (safe to run twice, `migrate:rollback` decrypts again).
+
 ## Control Panel
 
 A moderator's view under **Tools > Messages** (`Nachrichten` in German). It shows the shape of the conversations and never their content: **no message text, no participant name or key, and no free-text subject id** appear on any screen, in any response or in the widget. The initiator of an anonymous conversation is only ever "Initiator".
