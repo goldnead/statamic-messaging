@@ -206,6 +206,27 @@ class MessagingTest extends TestCase
         $this->assertNull(Message::find($reply->id)->read_at);
     }
 
+    public function test_read_returns_how_many_messages_it_marked(): void
+    {
+        $c = $this->start();
+        $this->service()->reply($c, $this->admin, 'Wir melden uns');
+
+        $this->assertSame(1, $this->service()->markRead($c, $this->singer));
+        $this->assertSame(0, $this->service()->markRead($c, $this->singer));
+    }
+
+    public function test_a_deleted_account_without_erasure_is_named_by_the_deleted_label(): void
+    {
+        $c = $this->service()->start($this->singer, null, 'Hallo', false, null, $this->member);
+        $this->service()->reply($c, $this->member, 'Antwort');
+
+        $this->member->delete();
+
+        $thread = $this->service()->thread($c, $this->singer);
+        $this->assertSame(Conversation::DELETED_LABEL, $thread[1]['sender']);
+        $this->assertSame(Conversation::DELETED_LABEL, $c->displayName($this->member->id(), $this->singer));
+    }
+
     public function test_message_sent_fires_per_message(): void
     {
         Event::fake([MessageSent::class]);
