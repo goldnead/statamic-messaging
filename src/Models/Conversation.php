@@ -99,6 +99,6 @@ class Conversation extends Model
             }
         }
 
-        return Users::name($user) ?? '';
+        return Users::name($user) ?? self::DELETED_LABEL;
     }
 }

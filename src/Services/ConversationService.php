@@ -173,12 +173,12 @@ class ConversationService
         ];
     }
 
-    /** Marks what the others wrote as read. */
-    public function markRead(Conversation $conversation, mixed $user): void
+    /** Marks what the others wrote as read. Returns how many messages were marked. */
+    public function markRead(Conversation $conversation, mixed $user): int
     {
         Gate::forUser($user)->authorize('view', $conversation);
 
-        $conversation->messages()->whereNull('read_at')
+        return $conversation->messages()->whereNull('read_at')
             ->where(fn ($q) => $q->where('sender_user_id', '!=', Users::key($user))->orWhereNull('sender_user_id'))
             ->update(['read_at' => now()]);
     }
