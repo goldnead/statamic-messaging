@@ -15,6 +15,7 @@ use Goldnead\Teams\TeamsManager;
 use Illuminate\Broadcasting\BroadcastManager;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Log;
 use Statamic\Facades\Antlers;
 
 class RealtimeTest extends TestCase
@@ -320,5 +321,22 @@ class RealtimeTest extends TestCase
         $message = $this->service()->reply($c, $this->admin, 'Trotzdem gespeichert.');
 
         $this->assertNotNull(Message::find($message->id));
+    }
+
+    public function test_a_failed_announce_logs_which_conversation_and_message_it_was_for(): void
+    {
+        $c = $this->anonymous();
+        config(['broadcasting.default' => 'reverb', 'broadcasting.connections.reverb' => ['driver' => 'reverb', 'key' => 'k', 'secret' => 's', 'app_id' => '1', 'options' => []]]);
+        Log::spy();
+
+        $message = $this->service()->reply($c, $this->admin, self::BODY);
+
+        Log::shouldHaveReceived('warning')->withArgs(function (string $text, array $context = []) use ($c, $message) {
+            return str_contains($text, (string) $c->id)
+                && str_contains($text, (string) $message->id)
+                && ($context['conversation_id'] ?? null) === $c->id
+                && ($context['message_id'] ?? null) === $message->id
+                && ! str_contains(json_encode($context), self::BODY);
+        });
     }
 }
