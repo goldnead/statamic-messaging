@@ -5,6 +5,7 @@ namespace Goldnead\Messaging\Support;
 use Goldnead\Messaging\Broadcasting\MessageBroadcast;
 use Goldnead\Messaging\Models\Conversation;
 use Goldnead\Messaging\Models\Message;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
@@ -63,6 +64,13 @@ class Realtime
                 static::recipients($message->conversation),
             ));
         } catch (Throwable $e) {
+            Log::warning("Messaging: realtime announce ({$type}) failed for conversation {$message->conversation_id}, message {$message->id}.", [
+                'type' => $type,
+                'conversation_id' => (int) $message->conversation_id,
+                'message_id' => (int) $message->id,
+                'exception' => $e::class,
+            ]);
+
             report($e);
         }
     }
